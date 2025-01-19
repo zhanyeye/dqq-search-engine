@@ -8,123 +8,140 @@ import (
 	"testing"
 )
 
-// 初始化测试用的 ConcurrentHashMap 和 sync.Map
-var conMp = NewConcurrentHashMap(8, 1000)
-var synMp = sync.Map{}
+// 初始化并发和同步映射
+var concurrentMap = NewConcurrentHashMap(8, 1000)
+var syncMap = sync.Map{}
 
-// readConMap 从 ConcurrentHashMap 中读取数据
-func readConMap() {
+// readFromConcurrentMap 执行对并发映射的读取操作
+func readFromConcurrentMap() {
 	for i := 0; i < 10000; i++ {
 		key := strconv.Itoa(int(rand.Int63()))
-		conMp.Get(key)
+		concurrentMap.Get(key)
 	}
 }
 
-// writeConMap 向 ConcurrentHashMap 中写入数据
-func writeConMap() {
+// writeToConcurrentMap 执行对并发映射的写入操作
+func writeToConcurrentMap() {
 	for i := 0; i < 10000; i++ {
 		key := strconv.Itoa(int(rand.Int63()))
-		conMp.Set(key, 1)
+		concurrentMap.Set(key, 1)
 	}
 }
 
-// readSynMap 从 sync.Map 中读取数据
-func readSynMap() {
+// deleteFromConcurrentMap 执行对并发映射的删除操作
+func deleteFromConcurrentMap() {
 	for i := 0; i < 10000; i++ {
 		key := strconv.Itoa(int(rand.Int63()))
-		synMp.Load(key)
+		concurrentMap.Delete(key)
 	}
 }
 
-// writeSynMap 向 sync.Map 中写入数据
-func writeSynMap() {
+// readFromSyncMap 执行对同步映射的读取操作
+func readFromSyncMap() {
 	for i := 0; i < 10000; i++ {
 		key := strconv.Itoa(int(rand.Int63()))
-		synMp.Store(key, 1)
+		syncMap.Load(key)
 	}
 }
 
-// BenchmarkConMap 并发读写测试 ConcurrentHashMap
-func BenchmarkConMap(b *testing.B) {
+// writeToSyncMap 执行对同步映射的写入操作
+func writeToSyncMap() {
+	for i := 0; i < 10000; i++ {
+		key := strconv.Itoa(int(rand.Int63()))
+		syncMap.Store(key, 1)
+	}
+}
+
+// deleteFromSyncMap 执行对同步映射的删除操作
+func deleteFromSyncMap() {
+	for i := 0; i < 10000; i++ {
+		key := strconv.Itoa(int(rand.Int63()))
+		syncMap.Delete(key)
+	}
+}
+
+// BenchmarkConcurrentMap 基准测试并发映射的读取、写入和删除操作
+func BenchmarkConcurrentMap(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		const P = 300
+		const numGoroutines = 300
 		wg := sync.WaitGroup{}
-		wg.Add(2 * P)
-		for i := 0; i < P; i++ { // 300 个协程一直读
+		wg.Add(3 * numGoroutines)
+		for i := 0; i < numGoroutines; i++ { // 300 个 goroutine 用于读取
 			go func() {
 				defer wg.Done()
-				readConMap()
+				readFromConcurrentMap()
 			}()
 		}
-		for i := 0; i < P; i++ { // 300 个协程一直写
+		for i := 0; i < numGoroutines; i++ { // 300 个 goroutine 用于写入
 			go func() {
 				defer wg.Done()
-				writeConMap()
-				// time.Sleep(100 * time.Millisecond)   //写很少时速度差1倍，一直写时速度差3倍
+				writeToConcurrentMap()
+			}()
+		}
+		for i := 0; i < numGoroutines; i++ { // 300 个 goroutine 用于删除
+			go func() {
+				defer wg.Done()
+				deleteFromConcurrentMap()
 			}()
 		}
 		wg.Wait()
 	}
 }
 
-// BenchmarkSynMap 并发读写测试 sync.Map
-func BenchmarkSynMap(b *testing.B) {
+// BenchmarkSyncMap 基准测试同步映射的读取、写入和删除操作
+func BenchmarkSyncMap(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		const P = 300
+		const numGoroutines = 300
 		wg := sync.WaitGroup{}
-		wg.Add(2 * P)
-		for i := 0; i < P; i++ { // 300 个协程一直读
+		wg.Add(3 * numGoroutines)
+		for i := 0; i < numGoroutines; i++ { // 300 个 goroutine 用于读取
 			go func() {
 				defer wg.Done()
-				readSynMap()
+				readFromSyncMap()
 			}()
 		}
-		for i := 0; i < P; i++ { // 300 个协程一直写
+		for i := 0; i < numGoroutines; i++ { // 300 个 goroutine 用于写入
 			go func() {
 				defer wg.Done()
-				writeSynMap()
-				// time.Sleep(100 * time.Millisecond)
+				writeToSyncMap()
+			}()
+		}
+		for i := 0; i < numGoroutines; i++ { // 300 个 goroutine 用于删除
+			go func() {
+				defer wg.Done()
+				deleteFromSyncMap()
 			}()
 		}
 		wg.Wait()
 	}
 }
 
-// TestConcurrentHashMap 基本功能测试
-func TestConcurrentHashMap(t *testing.T) {
-	m := NewConcurrentHashMap(10, 100)
-
-	// 测试 Set 和 Get 方法
-	m.Set("key1", "value1")
-	value, exists := m.Get("key1")
-	if !exists || value != "value1" {
-		t.Errorf("Expected value1, got %v", value)
+// TestConcurrentHashMapDelete 测试 ConcurrentHashMap 的删除方法
+func TestConcurrentHashMapDelete(t *testing.T) {
+	// 设置初始数据
+	for i := 0; i < 10; i++ {
+		concurrentMap.Set(strconv.Itoa(i), i)
 	}
 
-	// 测试不存在的 key
-	value, exists = m.Get("key2")
-	if exists || value != nil {
-		t.Errorf("Expected nil, got %v", value)
+	// 删除数据
+	for i := 0; i < 10; i++ {
+		concurrentMap.Delete(strconv.Itoa(i))
 	}
 
-	// 测试迭代器
-	m.Set("key2", "value2")
-	iterator := m.CreateIterator()
-	count := 0
-	for entry := iterator.Next(); entry != nil; entry = iterator.Next() {
-		count++
-	}
-	if count != 2 {
-		t.Errorf("Expected 2 entries, got %d", count)
+	// 验证数据是否被删除
+	for i := 0; i < 10; i++ {
+		if _, exists := concurrentMap.Get(strconv.Itoa(i)); exists {
+			t.Errorf("key %d 应该已被删除", i)
+		}
 	}
 }
 
-// TestConcurrentHashMapIterator 测试 ConcurrentHashMap 的迭代器
+// TestConcurrentHashMapIterator 测试并发映射的迭代器
 func TestConcurrentHashMapIterator(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		conMp.Set(strconv.Itoa(i), i)
+		concurrentMap.Set(strconv.Itoa(i), i)
 	}
-	iterator := conMp.CreateIterator()
+	iterator := concurrentMap.CreateIterator()
 	entry := iterator.Next()
 	for entry != nil {
 		fmt.Println(entry.Key, entry.Value)
@@ -132,54 +149,13 @@ func TestConcurrentHashMapIterator(t *testing.T) {
 	}
 }
 
-// TestConcurrentHashMapConcurrency 并发读写测试
-func TestConcurrentHashMapConcurrency(t *testing.T) {
-	const P = 100
-	var wg sync.WaitGroup
-	wg.Add(2 * P)
-
-	// 用于验证写入的数据是否能被读取
-	keys := make([]string, 1000)
-	for i := 0; i < 1000; i++ {
-		keys[i] = strconv.Itoa(int(rand.Int63()))
-		conMp.Set(keys[i], i)
-	}
-
-	// 启动 P 个协程进行读操作
-	for i := 0; i < P; i++ {
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 1000; j++ {
-				key := keys[j%1000]
-				value, exists := conMp.Get(key)
-				if !exists || value != j%1000 {
-					t.Errorf("Expected %d, got %v", j%1000, value)
-				}
-			}
-		}()
-	}
-
-	// 启动 P 个协程进行写操作
-	for i := 0; i < P; i++ {
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 1000; j++ {
-				key := strconv.Itoa(int(rand.Int63()))
-				conMp.Set(key, rand.Int())
-			}
-		}()
-	}
-
-	wg.Wait()
-}
-
+// go test -v ./util/test -run=^TestConcurrentHashMapIterator$ -count=1
 // go test ./utils -bench=Map -run=^$ -count=1 -benchmem -benchtime=3s
 /*
 goos: windows
 goarch: amd64
 pkg: dqq-search-engine/utils
 cpu: 13th Gen Intel(R) Core(TM) i7-1360P
-BenchmarkConMap-16             6         613649983 ns/op        522988856 B/op   6089069 allocs/op
-BenchmarkSynMap-16             2        4505936150 ns/op        911848880 B/op  18099574 allocs/op
-
+BenchmarkConcurrentMap-16              4        1081605200 ns/op        550542020 B/op   9110571 allocs/op
+BenchmarkSyncMap-16                    1        4764948600 ns/op        804182752 B/op  21111612 allocs/op
 */

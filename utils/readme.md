@@ -1,0 +1,66 @@
+# README
+
+
+
+## ConcurrentHashMap 设计
+
+`ConcurrentHashMap` 是一种高效的并发哈希表，旨在解决多线程环境下数据共享的问题。它通过将数据分割成多个小的映射（segments），并为每个小映射配备独立的读写锁，从而实现高效的并发读取和写入操作。
+
+虽然 `sync.Map` 提供了简单易用的并发映射实现，但在高性能和特定需求的场景下，自己实现的 `ConcurrentHashMap` 可以提供更高的性能。
+
+### 实现设计
+
+#### 1. 数据结构
+
+- **Segments**：`ConcurrentHashMap` 由多个小的映射构成，每个小映射（segment）是一个独立的哈希表。这种设计使得多个线程可以并行访问不同的小映射，从而提高了并发性能。
+
+- **Segment Locks**：每个小映射配备一把读写锁（`sync.RWMutex`）。这避免了全局锁的使用，使得多个线程可以同时读取和写入不同的小映射。
+
+- **Hashing**：使用 `FarmHash` 算法对键进行哈希计算，以确定键应存储在哪个小映射中。通过哈希值与小映射数量取模，得到对应的小映射索引。
+
+以下是 Java 中  `ConcurrentHashMap` 的数据结构示意图, 可以参考：
+
+![java 中 ConcurrentHashMap](https://i-blog.csdnimg.cn/blog_migrate/5fdb368d583f3406da42621795fd82b0.jpeg)
+
+#### 2. 关键方法
+
+- **Set**：在写入数据时，首先通过哈希函数计算出键对应的小映射索引，然后对该小映射的写锁进行加锁，确保在写入期间没有其他线程可以修改该小映射的数据。
+
+- **Get**：在读取数据时，使用读锁（`RLock`），允许多个线程同时读取同一个小映射的数据，提高了读取的并发性。
+
+- **Delete**：删除操作与写入操作类似，同样需要对相应的小映射加锁，以确保数据的一致性。
+
+#### 3. 迭代器设计
+
+- `ConcurrentHashMapIterator` 提供了对 `ConcurrentHashMap` 的遍历能力。它使用了一个二维切片来存储所有小映射的键，允许用户逐个访问每个键值对。
+
+- 迭代器的 `Next` 方法通过递归方式处理空行的情况，确保可以遍历所有非空的键值对。
+
+### 并发控制
+
+`ConcurrentHashMap` 的并发控制通过细粒度锁（segment-level locking）实现。与传统的哈希表只使用一个全局锁不同，`ConcurrentHashMap` 通过以下方式提高并发性能：
+
+- **读锁与写锁**：使用 `sync.RWMutex` 提供读写锁的支持，允许多个读操作并发进行，而写操作则是独占的。
+
+- **分段锁定**：将数据分段，每个段都有自己的锁。这样可以在高并发情况下减少锁争用，提高性能。
+
+### 性能分析
+
+在基准测试中，`ConcurrentHashMap` 显示出优于传统 `sync.Map` 的性能，尤其是在高并发读写场景下。具体的性能数据如下：
+
+```plaintext
+goos: windows
+goarch: amd64
+pkg: dqq-search-engine/utils
+cpu: 13th Gen Intel(R) Core(TM) i7-1360P
+BenchmarkConcurrentMap-16              4        1081605200 ns/op        550542020 B/op   9110571 allocs/op
+BenchmarkSyncMap-16                    1        4764948600 ns/op        804182752 B/op  21111612 allocs/op
+```
+
+从测试结果可以看出，`ConcurrentHashMap` 在处理大量并发操作时显著减少了每次操作的平均时间。
+
+### 总结
+
+`ConcurrentHashMap` 是为了解决多线程环境下的数据共享问题而设计的高效数据结构。通过将数据分段和使用细粒度的锁机制，它能够在保证数据一致性的同时，提供高并发的读写性能。这使得它在实际应用中非常适合需要高并发访问的场景，比如缓存、会话存储等。
+
+这个文档旨在帮助读者快速理解 `ConcurrentHashMap` 的实现原理及其设计特点，适合面试复习和总结。

@@ -55,6 +55,14 @@ func (m *ConcurrentHashMap) Get(key string) (any, bool) {
 	return value, exists
 }
 
+// Delete 删除指定key的元素
+func (m *ConcurrentHashMap) Delete(key string) {
+    index := m.getSegmentIndex(key)
+    m.segmentLocks[index].Lock()
+    defer m.segmentLocks[index].Unlock()
+    delete(m.segments[index], key)
+}
+
 // CreateIterator 创建一个迭代器
 func (m *ConcurrentHashMap) CreateIterator() *ConcurrentHashMapIterator {
 	keys := make([][]string, 0, len(m.segments))
