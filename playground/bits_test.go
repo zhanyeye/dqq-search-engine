@@ -32,7 +32,7 @@ func TestIsBitOne(t *testing.T) {
 	}
 }
 
-func TestSetBitOne(t *testing.T) {
+func TestUpdateBitOne(t *testing.T) {
 	tests := []struct {
 		number      uint64
 		bitPosition uint

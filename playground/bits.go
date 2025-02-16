@@ -64,3 +64,9 @@ func CountBitOnePlus(number uint64) int {
 	}
 	return cnt
 }
+
+const (
+	MALE        = 1 << iota // MALE: 1 << 0 = 1
+	VIP                     // VIP: 1 << 1 = 2
+	WEEK_ACTIVE             // WEEK_ACTIVE: 1 << 2 = 4
+)
